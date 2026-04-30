@@ -17,8 +17,8 @@ st.title("📚 Book Recommendation System")
 def load_data():
     try:
         books = pickle.load(open('books.pkl', 'rb'))
-    except Exception as e:
-        st.error("❌ Error loading books.pkl. Make sure file exists and is not empty.")
+    except Exception:
+        st.error("❌ Error loading books.pkl. File missing or empty.")
         st.stop()
 
     books = pd.DataFrame(books)
@@ -27,38 +27,29 @@ def load_data():
     books.columns = books.columns.str.strip().str.lower()
 
     # -------------------------------
-    # Detect columns automatically
+    # Detect columns
     # -------------------------------
     title_col = None
     author_col = None
-    image_col = None
 
     for col in books.columns:
         if 'title' in col:
             title_col = col
-        elif 'author' in col:
+        if 'author' in col:
             author_col = col
-        elif 'image' in col or 'img' in col or 'url' in col:
-            image_col = col
 
-    # Safety checks
     if title_col is None:
         st.error("❌ No title column found in dataset")
         st.stop()
 
+    # If author missing
     if author_col is None:
         books['author'] = "Unknown"
         author_col = 'author'
 
-    # Handle image column
-    if image_col is None:
-        books['image'] = "https://via.placeholder.com/150"
-        image_col = 'image'
-
     # Fill missing values
     books[title_col] = books[title_col].fillna("")
     books[author_col] = books[author_col].fillna("")
-    books[image_col] = books[image_col].fillna("https://via.placeholder.com/150")
 
     # -------------------------------
     # Create tags
@@ -73,9 +64,15 @@ def load_data():
 
     similarity = cosine_similarity(vectors)
 
-    return books, similarity, title_col, image_col
+    return books, similarity, title_col
 
-books, similarity, title_col, image_col = load_data()
+books, similarity, title_col = load_data()
+
+# -------------------------------
+# Get Book Image (ALWAYS WORKS)
+# -------------------------------
+def get_book_image(title):
+    return f"https://covers.openlibrary.org/b/title/{title.replace(' ', '+')}-M.jpg"
 
 # -------------------------------
 # Recommendation Function
@@ -99,14 +96,9 @@ def recommend(book):
     images = []
 
     for i in book_list:
-        names.append(books.iloc[i[0]][title_col])
-        img = books.iloc[i[0]][image_col]
-
-        # Validate image URL
-        if isinstance(img, str) and img.startswith("http"):
-            images.append(img)
-        else:
-            images.append("https://via.placeholder.com/150")
+        title = books.iloc[i[0]][title_col]
+        names.append(title)
+        images.append(get_book_image(title))  # 🔥 always fetch image
 
     return names, images
 
@@ -127,4 +119,4 @@ if st.button("Recommend"):
     for i in range(5):
         with cols[i]:
             st.markdown(f"**{names[i]}**")
-            st.image(images[i])
+            st.image(images[i], use_container_width=True)
