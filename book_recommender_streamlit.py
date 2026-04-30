@@ -7,6 +7,8 @@ Original file is located at
     https://colab.research.google.com/drive/1Rz0ZbyfTpO8b21RllYn2uYPxHId3X63q
 """
 from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 import streamlit as st
 import pickle
 
