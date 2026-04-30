@@ -7,7 +7,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 # -------------------------------
 # Page Setup
 # -------------------------------
-st.set_page_config(page_title="Book Recommender")
+st.set_page_config(page_title="Book Recommender", layout="wide")
 st.title("📚 Book Recommendation System")
 
 # -------------------------------
@@ -18,19 +18,17 @@ def load_data():
     try:
         books = pickle.load(open('books.pkl', 'rb'))
     except Exception as e:
-        st.error("❌ Error loading books.pkl file")
+        st.error("❌ Error loading books.pkl. Make sure file exists and is not empty.")
         st.stop()
 
-    # Convert to DataFrame if needed
     books = pd.DataFrame(books)
 
-    # 🔥 Normalize column names (VERY IMPORTANT)
+    # Normalize column names
     books.columns = books.columns.str.strip().str.lower()
 
-    # 🔍 Debug: Show columns (for YOU to check once)
-    st.write("Columns in dataset:", books.columns)
-
-    # 🔥 Detect correct column names dynamically
+    # -------------------------------
+    # Detect columns automatically
+    # -------------------------------
     title_col = None
     author_col = None
     image_col = None
@@ -38,25 +36,38 @@ def load_data():
     for col in books.columns:
         if 'title' in col:
             title_col = col
-        if 'author' in col:
+        elif 'author' in col:
             author_col = col
-        if 'image' in col or 'url' in col:
+        elif 'image' in col or 'img' in col or 'url' in col:
             image_col = col
 
-    # ❌ If important columns missing
-    if title_col is None or author_col is None:
-        st.error("❌ Required columns not found in dataset")
+    # Safety checks
+    if title_col is None:
+        st.error("❌ No title column found in dataset")
         st.stop()
 
-    # Fill missing image column safely
+    if author_col is None:
+        books['author'] = "Unknown"
+        author_col = 'author'
+
+    # Handle image column
     if image_col is None:
         books['image'] = "https://via.placeholder.com/150"
         image_col = 'image'
 
-    # 🔥 Create tags
-    books['tags'] = books[title_col].astype(str) + " " + books[author_col].astype(str)
+    # Fill missing values
+    books[title_col] = books[title_col].fillna("")
+    books[author_col] = books[author_col].fillna("")
+    books[image_col] = books[image_col].fillna("https://via.placeholder.com/150")
 
-    # 🔥 Vectorization
+    # -------------------------------
+    # Create tags
+    # -------------------------------
+    books['tags'] = books[title_col] + " " + books[author_col]
+
+    # -------------------------------
+    # Vectorization
+    # -------------------------------
     cv = CountVectorizer(max_features=5000, stop_words='english')
     vectors = cv.fit_transform(books['tags']).toarray()
 
@@ -73,7 +84,7 @@ def recommend(book):
     matches = books[books[title_col].str.contains(book, case=False, na=False)]
 
     if matches.empty:
-        return ["No match found"] * 5, [""] * 5
+        return ["No match found"] * 5, ["https://via.placeholder.com/150"] * 5
 
     index = matches.index[0]
     distances = similarity[index]
@@ -89,7 +100,13 @@ def recommend(book):
 
     for i in book_list:
         names.append(books.iloc[i[0]][title_col])
-        images.append(books.iloc[i[0]][image_col])
+        img = books.iloc[i[0]][image_col]
+
+        # Validate image URL
+        if isinstance(img, str) and img.startswith("http"):
+            images.append(img)
+        else:
+            images.append("https://via.placeholder.com/150")
 
     return names, images
 
@@ -99,6 +116,9 @@ def recommend(book):
 book_list = books[title_col].dropna().unique()
 selected_book = st.selectbox("📖 Select a book", book_list)
 
+# -------------------------------
+# Show Recommendations
+# -------------------------------
 if st.button("Recommend"):
     names, images = recommend(selected_book)
 
@@ -106,5 +126,5 @@ if st.button("Recommend"):
 
     for i in range(5):
         with cols[i]:
-            st.text(names[i])
+            st.markdown(f"**{names[i]}**")
             st.image(images[i])
