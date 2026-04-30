@@ -21,17 +21,20 @@ st.title("📚 Book Recommendation System")
 # -------------------------------
 # Load Data
 # -------------------------------
-books = pickle.load(open('books.pkl', 'rb'))
+@st.cache_data
+def load_data():
+    books = pickle.load(open('books.pkl', 'rb'))
+    
+    books['tags'] = books['Book-Title'] + " " + books['Book-Author']
+    
+    cv = CountVectorizer(max_features=5000, stop_words='english')
+    vectors = cv.fit_transform(books['tags']).toarray()
+    
+    similarity = cosine_similarity(vectors)
+    
+    return books, similarity
 
-# 🔥 Create tags (important)
-books['tags'] = books['Book-Title'] + " " + books['Book-Author']
-
-# 🔥 Create vectors
-cv = CountVectorizer(max_features=5000, stop_words='english')
-vectors = cv.fit_transform(books['tags']).toarray()
-
-# 🔥 Compute similarity
-similarity = cosine_similarity(vectors)
+books, similarity = load_data()
 
 # -------------------------------
 # Recommendation Function
